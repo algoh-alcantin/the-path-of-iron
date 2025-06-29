@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import '../theme/samurai_theme.dart';
 import '../widgets/samurai_icons.dart';
+import '../services/program_service.dart';
+import '../repositories/training_max_repository.dart';
+import '../models/training_max.dart';
+import 'package:uuid/uuid.dart';
 
 class ProgramSetupScreen extends StatefulWidget {
-  const ProgramSetupScreen({super.key});
+  final VoidCallback? onProgramCreated;
+  
+  const ProgramSetupScreen({super.key, this.onProgramCreated});
 
   @override
   State<ProgramSetupScreen> createState() => _ProgramSetupScreenState();
@@ -11,6 +17,10 @@ class ProgramSetupScreen extends StatefulWidget {
 
 class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
   int _currentStep = 0;
+  final _programService = ProgramService();
+  final _trainingMaxRepository = TrainingMaxRepository();
+  final _uuid = const Uuid();
+  bool _isCreating = false;
   
   // Training Max Controllers
   final _squatController = TextEditingController();
@@ -425,18 +435,40 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _createProgram,
+              onPressed: _isCreating ? null : _createProgram,
               style: ElevatedButton.styleFrom(
                 backgroundColor: SamuraiColors.sanguineRed,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(
-                'FORGE THE PATH',
-                style: SamuraiTextStyles.katanaSharp(
-                  fontSize: 16,
-                  color: SamuraiColors.ashWhite,
-                ),
-              ),
+              child: _isCreating
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(SamuraiColors.ashWhite),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'FORGING...',
+                          style: SamuraiTextStyles.katanaSharp(
+                            fontSize: 16,
+                            color: SamuraiColors.ashWhite,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'FORGE THE PATH',
+                      style: SamuraiTextStyles.katanaSharp(
+                        fontSize: 16,
+                        color: SamuraiColors.ashWhite,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -479,18 +511,105 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
     );
   }
 
-  void _createProgram() {
-    // TODO: Save program configuration to database
-    // TODO: Navigate to main app or show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Program created successfully! Your path begins now.',
-          style: SamuraiTextStyles.brushStroke(),
+  Future<void> _createProgram() async {
+    if (_isCreating) return;
+    
+    setState(() => _isCreating = true);
+    
+    try {
+      // Validate training maxes
+      if (_squatController.text.isEmpty ||
+          _benchController.text.isEmpty ||
+          _deadliftController.text.isEmpty ||
+          _ohpController.text.isEmpty) {
+        throw Exception('Please enter all training maxes');
+      }
+      
+      // Parse training maxes
+      final squatTM = double.tryParse(_squatController.text);
+      final benchTM = double.tryParse(_benchController.text);
+      final deadliftTM = double.tryParse(_deadliftController.text);
+      final ohpTM = double.tryParse(_ohpController.text);
+      
+      if (squatTM == null || benchTM == null || deadliftTM == null || ohpTM == null) {
+        throw Exception('Please enter valid numbers for training maxes');
+      }
+      
+      // Create training max objects
+      final now = DateTime.now();
+      final trainingMaxes = [
+        TrainingMax(
+          id: _uuid.v4(),
+          exercise: 'Squat',
+          weight: squatTM,
+          lastTested: now,
         ),
-        backgroundColor: SamuraiColors.honorableGreen,
-      ),
-    );
+        TrainingMax(
+          id: _uuid.v4(),
+          exercise: 'Bench Press',
+          weight: benchTM,
+          lastTested: now,
+        ),
+        TrainingMax(
+          id: _uuid.v4(),
+          exercise: 'Deadlift',
+          weight: deadliftTM,
+          lastTested: now,
+        ),
+        TrainingMax(
+          id: _uuid.v4(),
+          exercise: 'Overhead Press',
+          weight: ohpTM,
+          lastTested: now,
+        ),
+      ];
+      
+      // Save training maxes to database
+      for (final tm in trainingMaxes) {
+        await _trainingMaxRepository.saveTrainingMax(tm);
+      }
+      
+      // Create and save program
+      final programId = _uuid.v4();
+      await _programService.setActiveProgram(programId);
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Program forged successfully! Your path to strength begins now.',
+              style: SamuraiTextStyles.brushStroke(),
+            ),
+            backgroundColor: SamuraiColors.honorableGreen,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Trigger callback and navigate back after a delay
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            widget.onProgramCreated?.call();
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error creating program: ${e.toString()}',
+              style: SamuraiTextStyles.brushStroke(),
+            ),
+            backgroundColor: SamuraiColors.shamefulRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
   }
 
   @override

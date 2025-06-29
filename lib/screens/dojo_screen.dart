@@ -3,6 +3,7 @@ import '../theme/samurai_theme.dart';
 import '../widgets/samurai_icons.dart';
 import '../widgets/training_max_scroll.dart';
 import '../widgets/samurai_bottom_nav.dart';
+import '../services/program_service.dart';
 import 'program_setup_screen.dart';
 import 'training_screen.dart';
 import 'progress_screen.dart';
@@ -16,12 +17,48 @@ class DojoScreen extends StatefulWidget {
 
 class _DojoScreenState extends State<DojoScreen> {
   int _currentIndex = 0;
+  final ProgramService _programService = ProgramService();
+  bool _hasActiveProgram = false;
+  bool _isLoading = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    // For now, always show empty state until we create a program
+    _hasActiveProgram = false;
+    _isLoading = false;
+  }
+  
+  Future<void> _checkProgramStatus() async {
+    try {
+      final hasProgram = await _programService.hasActiveProgram();
+      if (mounted) {
+        setState(() {
+          _hasActiveProgram = hasProgram;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking program status: $e');
+      if (mounted) {
+        setState(() {
+          _hasActiveProgram = false;
+          _isLoading = false;
+        });
+      }
+    }
+  }
   
   List<Widget> get _screens => [
     _buildDojoHome(),
     const TrainingScreen(),
     const ProgressScreen(),
-    const ProgramSetupScreen(),
+    ProgramSetupScreen(
+      onProgramCreated: () {
+        _checkProgramStatus(); // Refresh the dojo state
+        setState(() => _currentIndex = 0); // Go back to dojo
+      },
+    ),
   ];
 
   @override
@@ -37,12 +74,227 @@ class _DojoScreenState extends State<DojoScreen> {
   }
 
   Widget _buildDojoHome() {
+    // For now, always show empty state for new users
+    return _buildEmptyDojoState();
+  }
+  
+  Widget _buildEmptyDojoState() {
     return CustomScrollView(
       slivers: [
         _buildHeroSection(),
-        _buildTodaysMission(),
-        _buildTrainingMaxes(),
-        _buildRecentActivity(),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Container(
+                padding: const EdgeInsets.all(40),
+                decoration: SamuraiDecorations.forgeContainer,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: SamuraiColors.goldenKoi,
+                            width: 3,
+                          ),
+                          color: SamuraiColors.goldenKoi.withValues(alpha: 0.1),
+                        ),
+                        child: const Icon(
+                          SamuraiIcons.torii,
+                          size: 80,
+                          color: SamuraiColors.goldenKoi,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'WELCOME TO THE DOJO',
+                        style: SamuraiTextStyles.katanaSharp(
+                          fontSize: 24,
+                          color: SamuraiColors.goldenKoi,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your training ground awaits, but first you must forge your path.',
+                        style: SamuraiTextStyles.brushStroke(
+                          fontSize: 16,
+                          color: SamuraiColors.ashWhite,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: SamuraiColors.midnightBlack.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: SamuraiColors.sakuraPink.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              '"A journey of a thousand miles begins with a single step."',
+                              style: SamuraiTextStyles.ancientWisdom(
+                                fontSize: 14,
+                                color: SamuraiColors.sakuraPink,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '- Lao Tzu',
+                              style: SamuraiTextStyles.brushStroke(
+                                fontSize: 12,
+                                color: SamuraiColors.ashWhite.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'To begin your strength journey, you must first create your training program.',
+                        style: SamuraiTextStyles.brushStroke(
+                          fontSize: 14,
+                          color: SamuraiColors.ashWhite.withValues(alpha: 0.9),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() => _currentIndex = 3); // Navigate to Setup tab
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: SamuraiColors.sanguineRed,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                SamuraiIcons.forge,
+                                color: SamuraiColors.ashWhite,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'FORGE YOUR PATH',
+                                style: SamuraiTextStyles.katanaSharp(
+                                  fontSize: 16,
+                                  color: SamuraiColors.ashWhite,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Set up your training maxes, choose your program, and begin your journey to strength mastery.',
+                        style: SamuraiTextStyles.ancientWisdom(
+                          fontSize: 12,
+                          color: SamuraiColors.ashWhite.withValues(alpha: 0.6),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 40),
+              _buildQuickStats(),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildQuickStats() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: SamuraiColors.ironGray.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: SamuraiColors.goldenKoi.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'What awaits you:',
+            style: SamuraiTextStyles.brushStroke(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: SamuraiColors.ashWhite,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildStatItem(
+                icon: SamuraiIcons.katana,
+                label: 'Daily\nWorkouts',
+                color: SamuraiColors.sanguineRed,
+              ),
+              _buildStatItem(
+                icon: SamuraiIcons.mountainPath,
+                label: 'Progress\nTracking',
+                color: SamuraiColors.goldenKoi,
+              ),
+              _buildStatItem(
+                icon: SamuraiIcons.meditation,
+                label: 'Recovery\nMonitoring',
+                color: SamuraiColors.contemplativeBlue,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: SamuraiTextStyles.brushStroke(
+            fontSize: 10,
+            color: SamuraiColors.ashWhite.withValues(alpha: 0.8),
+          ),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
