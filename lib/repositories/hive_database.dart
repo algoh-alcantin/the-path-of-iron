@@ -6,6 +6,10 @@ import '../models/user_profile.dart';
 import '../models/exercise.dart';
 import '../models/workout.dart';
 import '../models/workout_log.dart';
+import '../models/program.dart';
+import '../models/phase.dart';
+import '../models/progression_logic.dart';
+import '../models/program_history.dart';
 
 class HiveDatabase {
   static const String _trainingMaxBoxName = 'training_maxes';
@@ -37,6 +41,31 @@ class HiveDatabase {
     Hive.registerAdapter(WorkoutAdapter());
     Hive.registerAdapter(WorkoutLogAdapter());
     Hive.registerAdapter(WorkoutSetAdapter());
+    
+    // New OO Architecture Adapters
+    Hive.registerAdapter(ProgramAdapter());
+    Hive.registerAdapter(ProgramTypeAdapter());
+    Hive.registerAdapter(DifficultyLevelAdapter());
+    Hive.registerAdapter(ProgramMetadataAdapter());
+    Hive.registerAdapter(ProgramDurationAdapter());
+    Hive.registerAdapter(PhaseAdapter());
+    Hive.registerAdapter(PhaseTypeAdapter());
+    Hive.registerAdapter(PhaseCharacteristicsAdapter());
+    Hive.registerAdapter(ProgressionLogicAdapter());
+    Hive.registerAdapter(ProgressionTypeAdapter());
+    Hive.registerAdapter(ProgressionRuleAdapter());
+    Hive.registerAdapter(ProgressionFormulaAdapter());
+    Hive.registerAdapter(FormulaTypeAdapter());
+    Hive.registerAdapter(AutoregulationRuleAdapter());
+    Hive.registerAdapter(ProgramHistoryAdapter());
+    Hive.registerAdapter(ProgramRecordAdapter());
+    Hive.registerAdapter(ActiveProgramAdapter());
+    Hive.registerAdapter(CompletedProgramAdapter());
+    Hive.registerAdapter(CompletionStatusAdapter());
+    Hive.registerAdapter(ProgramResultsAdapter());
+    Hive.registerAdapter(StrengthProgressionAdapter());
+    Hive.registerAdapter(StrengthDataPointAdapter());
+    Hive.registerAdapter(ProgramTemplateAdapter());
     
     await Hive.openBox<TrainingMax>(_trainingMaxBoxName);
     await Hive.openBox<WorkoutSession>(_workoutSessionBoxName);

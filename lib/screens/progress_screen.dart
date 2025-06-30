@@ -4,6 +4,7 @@ import '../widgets/samurai_icons.dart';
 import '../services/powerlifting_program_service.dart';
 import '../models/user_profile.dart';
 import '../repositories/hive_database.dart';
+import 'program_history_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -84,6 +85,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
           : _hasActiveProgram && _userProfile != null
               ? _buildProgressDashboard()
               : _buildNoActiveProgram(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ProgramHistoryScreen()),
+          );
+        },
+        backgroundColor: SamuraiColors.goldenKoi,
+        foregroundColor: SamuraiColors.midnightBlack,
+        icon: const Icon(Icons.history),
+        label: const Text('HISTORY'),
+      ),
     );
   }
 

@@ -1,23 +1,45 @@
 import '../models/user_profile.dart';
 import '../models/workout.dart';
 import '../models/exercise.dart';
+import '../models/program.dart';
+import '../models/program_history.dart';
+import '../programs/hip_aware_powerlifting_program.dart';
 import '../repositories/hive_database.dart';
+import 'program_management_service.dart';
 
 class PowerliftingProgramService {
   static const String _programActiveKey = 'powerlifting_program_active';
   static const String _currentWeekKey = 'current_week';
   static const String _programStartDateKey = 'program_start_date';
+  
+  final ProgramManagementService _programManagement = ProgramManagementService();
+  late final Program _program;
 
   // Initialize 18-week powerlifting program
   Future<void> initializeProgram(UserProfile userProfile) async {
-    final prefs = HiveDatabase.userPreferencesBox;
+    // Create the Hip-Aware Powerlifting Program using the new architecture
+    _program = HipAwarePowerliftingProgramFactory.createProgram();
     
-    await prefs.put(_programActiveKey, true);
-    await prefs.put(_currentWeekKey, 1);
-    await prefs.put(_programStartDateKey, DateTime.now().toIso8601String());
+    // Check if we need to switch from legacy system or start fresh
+    final hasActiveProgram = await _programManagement.hasActiveProgram();
     
-    // Generate all 18 weeks of workouts
-    await _generateAllWorkouts(userProfile);
+    if (!hasActiveProgram) {
+      // Start new program using the program management service
+      final result = await _programManagement.startProgram(
+        program: _program,
+        startingMaxes: userProfile.currentMaxes,
+        userNotes: 'Hip-Aware Powerlifting Program',
+        forceSwitch: true,
+      );
+      
+      if (result.success) {
+        // Update legacy preferences for backward compatibility
+        final prefs = HiveDatabase.userPreferencesBox;
+        await prefs.put(_programActiveKey, true);
+        await prefs.put(_currentWeekKey, 1);
+        await prefs.put(_programStartDateKey, DateTime.now().toIso8601String());
+      }
+    }
   }
 
   // Check if program is active
@@ -62,6 +84,28 @@ class PowerliftingProgramService {
       }
     }
     
+    // Use new architecture if available
+    try {
+      _program = HipAwarePowerliftingProgramFactory.createProgram();
+      
+      // Get the phase for this week
+      final phase = _program.getPhaseForWeek(week);
+      if (phase != null) {
+        // Calculate week within phase
+        int weekInPhase = _calculateWeekInPhase(week);
+        
+        // Get workout from phase
+        final workout = phase.getWorkoutForDay(weekInPhase, dayName);
+        if (workout != null) {
+          return _applyUserSpecificModifications(workout, userProfile);
+        }
+      }
+    } catch (e) {
+      // Fall back to legacy system if new architecture fails
+      print('Falling back to legacy workout system: $e');
+    }
+    
+    // Legacy fallback
     final workoutBox = HiveDatabase.workoutBox;
     String workoutId = 'week_${week}_$dayName';
     
@@ -83,6 +127,32 @@ class PowerliftingProgramService {
     }
     
     return workouts;
+  }
+
+  // Calculate week within current phase
+  int _calculateWeekInPhase(int globalWeek) {
+    _program = HipAwarePowerliftingProgramFactory.createProgram();
+    
+    int weekCounter = 0;
+    for (final phase in _program.phases) {
+      if (globalWeek <= weekCounter + phase.durationWeeks) {
+        return globalWeek - weekCounter;
+      }
+      weekCounter += phase.durationWeeks;
+    }
+    return 1; // Default to week 1 if something goes wrong
+  }
+  
+  // Apply user-specific modifications to workout
+  Workout _applyUserSpecificModifications(Workout workout, UserProfile? userProfile) {
+    if (userProfile == null) return workout;
+    
+    // Apply hip-specific modifications if user has hip weakness
+    if (userProfile.hipSide.isNotEmpty) {
+      return workout.applyHipLogic(userProfile.hipSide);
+    }
+    
+    return workout;
   }
 
   // Generate all 18 weeks of workouts
@@ -774,12 +844,70 @@ class PowerliftingProgramService {
       // Save updated profile
       await userProfileBox.put('current_user', userProfile);
       
+      // Update the active program with new maxes
+      try {
+        await _programManagement.updateProgramProgress(
+          newMaxes: userProfile.currentMaxes,
+          userNotes: 'Max testing completed - training maxes updated',
+        );
+      } catch (e) {
+        print('Failed to update program progress: $e');
+      }
+      
       // Clear existing workouts and regenerate with new training maxes
       final workoutBox = HiveDatabase.workoutBox;
       await workoutBox.clear();
       
-      // Regenerate all workouts with updated training maxes
+      // Regenerate all workouts with updated training maxes (legacy fallback)
       await _generateAllWorkouts(userProfile);
+    }
+  }
+  
+  // Check if user can switch programs (with momentum warnings)
+  Future<ProgramRecommendation> checkProgramSwitchRecommendation() async {
+    return await _programManagement.getProgramSwitchRecommendation();
+  }
+  
+  // Switch to a different program (with safety checks)
+  Future<ProgramSwitchResult> switchProgram({
+    required Program newProgram,
+    required Map<String, int> startingMaxes,
+    String? userNotes,
+    bool forceSwitch = false,
+  }) async {
+    return await _programManagement.startProgram(
+      program: newProgram,
+      startingMaxes: startingMaxes,
+      userNotes: userNotes,
+      forceSwitch: forceSwitch,
+    );
+  }
+  
+  // Get program statistics
+  Future<ProgramStatistics> getProgramStatistics() async {
+    return await _programManagement.getStatistics();
+  }
+  
+  // Complete current program
+  Future<void> completeProgram({
+    required CompletionStatus status,
+    String? userReview,
+    int? rating,
+  }) async {
+    final userProfileBox = HiveDatabase.userProfileBox;
+    final userProfile = userProfileBox.get('current_user');
+    
+    if (userProfile != null) {
+      await _programManagement.completeCurrentProgram(
+        status: status,
+        finalMaxes: userProfile.currentMaxes,
+        userReview: userReview,
+        rating: rating,
+      );
+      
+      // Update legacy preferences
+      final prefs = HiveDatabase.userPreferencesBox;
+      await prefs.put(_programActiveKey, false);
     }
   }
 }

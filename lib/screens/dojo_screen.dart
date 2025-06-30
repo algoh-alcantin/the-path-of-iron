@@ -8,9 +8,11 @@ import '../services/powerlifting_program_service.dart';
 import '../models/user_profile.dart';
 import '../models/workout.dart';
 import '../repositories/hive_database.dart';
-import 'program_setup_screen.dart';
+import 'program_creation_screen.dart';
 import 'training_screen.dart';
 import 'progress_screen.dart';
+import 'program_history_screen.dart';
+import 'dev_tools_screen.dart';
 
 class DojoScreen extends StatefulWidget {
   const DojoScreen({super.key});
@@ -27,6 +29,7 @@ class _DojoScreenState extends State<DojoScreen> {
   bool _isLoading = true;
   UserProfile? _userProfile;
   Workout? _todaysWorkout;
+  ProgramCreationScreen? _programCreationScreen;
   
   @override
   void initState() {
@@ -97,6 +100,13 @@ class _DojoScreenState extends State<DojoScreen> {
     }
   }
   
+  void _navigateToProgramHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProgramHistoryScreen()),
+    );
+  }
+  
   Future<void> _checkProgramStatus() async {
     try {
       final hasProgram = await _programService.hasActiveProgram();
@@ -117,23 +127,35 @@ class _DojoScreenState extends State<DojoScreen> {
     }
   }
   
-  List<Widget> get _screens => [
-    _buildDojoHome(),
-    const TrainingScreen(),
-    const ProgressScreen(),
-    ProgramSetupScreen(
-      onProgramCreated: () {
-        _loadProgramData(); // Refresh the dojo state
-        setState(() => _currentIndex = 0); // Go back to dojo
-      },
-    ),
-  ];
+
+  Widget _getCurrentScreen() {
+    switch (_currentIndex) {
+      case 0:
+        return _buildDojoHome();
+      case 1:
+        return const TrainingScreen();
+      case 2:
+        return const ProgressScreen();
+      case 3:
+        // Cache the ProgramCreationScreen to prevent recreating it
+        _programCreationScreen ??= ProgramCreationScreen(
+          onProgramCreated: () {
+            _loadProgramData(); // Refresh the dojo state
+            setState(() => _currentIndex = 0); // Go back to dojo
+            _programCreationScreen = null; // Reset for next time
+          },
+        );
+        return _programCreationScreen!;
+      default:
+        return _buildDojoHome();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: SamuraiColors.midnightBlack,
-      body: _screens[_currentIndex],
+      body: _getCurrentScreen(),
       bottomNavigationBar: SamuraiBottomNavigation(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -193,6 +215,13 @@ class _DojoScreenState extends State<DojoScreen> {
       floating: false,
       pinned: true,
       backgroundColor: SamuraiColors.midnightBlack,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.history, color: SamuraiColors.goldenKoi),
+          onPressed: _navigateToProgramHistory,
+          tooltip: 'Program History',
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -684,6 +713,13 @@ class _DojoScreenState extends State<DojoScreen> {
       floating: false,
       pinned: true,
       backgroundColor: SamuraiColors.midnightBlack,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.history, color: SamuraiColors.goldenKoi),
+          onPressed: _navigateToProgramHistory,
+          tooltip: 'Program History',
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -724,22 +760,30 @@ class _DojoScreenState extends State<DojoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          SamuraiIcons.torii,
-                          color: SamuraiColors.goldenKoi,
-                          size: 32,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'DOJO',
-                          style: SamuraiTextStyles.katanaSharp(
-                            fontSize: 28,
+                    GestureDetector(
+                      onLongPress: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const DevToolsScreen()),
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          const Icon(
+                            SamuraiIcons.torii,
                             color: SamuraiColors.goldenKoi,
+                            size: 32,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Text(
+                            'DOJO',
+                            style: SamuraiTextStyles.katanaSharp(
+                              fontSize: 28,
+                              color: SamuraiColors.goldenKoi,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
