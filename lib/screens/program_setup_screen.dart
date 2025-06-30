@@ -39,10 +39,9 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
   bool _useKilograms = false;
   
   // Hip-specific settings
-  bool _hasHipIssues = false;
+  bool _hasHipIssues = true; // Default to true since it's the only available option
   String _hipSide = 'left';
   final _nameController = TextEditingController();
-  int _trainingExperience = 18; // months
   
   // Max testing results
   Map<String, double> _maxTestResults = {};
@@ -64,19 +63,6 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
         onStepTapped: (step) => setState(() => _currentStep = step),
         onStepContinue: () {
           if (_currentStep < 4) {
-            // Validate max testing completion for Hip-Aware Powerlifting Program
-            if (_currentStep == 1 && _selectedProgram == 'Hip-Aware Powerlifting Program' && _maxTestResults.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Please complete the max testing protocol before proceeding',
-                    style: SamuraiTextStyles.brushStroke(),
-                  ),
-                  backgroundColor: SamuraiColors.sanguineRed,
-                ),
-              );
-              return;
-            }
             setState(() => _currentStep++);
           }
         },
@@ -376,7 +362,7 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
               const Icon(SamuraiIcons.katana, color: SamuraiColors.goldenKoi),
               const SizedBox(width: 12),
               Text(
-                'Guided Max Testing',
+                'Guided Max Testing (Optional)',
                 style: SamuraiTextStyles.katanaSharp(
                   fontSize: 18,
                   color: SamuraiColors.goldenKoi,
@@ -386,7 +372,7 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Follow a structured protocol to safely determine your training maxes.',
+            'You can complete this now or skip and do it as your first workout at the gym.',
             style: SamuraiTextStyles.ancientWisdom(
               color: SamuraiColors.sakuraPink,
             ),
@@ -465,36 +451,62 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _startMaxTesting,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SamuraiColors.sanguineRed,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      SamuraiIcons.katana,
-                      color: SamuraiColors.ashWhite,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'BEGIN MAX TESTING',
-                      style: SamuraiTextStyles.katanaSharp(
-                        fontSize: 16,
-                        color: SamuraiColors.ashWhite,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      // Skip max testing - continue to next step
+                      setState(() => _currentStep++);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: SamuraiColors.goldenKoi),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  ],
+                    child: Text(
+                      'SKIP FOR NOW',
+                      style: SamuraiTextStyles.katanaSharp(
+                        fontSize: 14,
+                        color: SamuraiColors.goldenKoi,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _startMaxTesting,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: SamuraiColors.sanguineRed,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          SamuraiIcons.katana,
+                          color: SamuraiColors.ashWhite,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'BEGIN NOW',
+                          style: SamuraiTextStyles.katanaSharp(
+                            fontSize: 14,
+                            color: SamuraiColors.ashWhite,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ] else ...[
             Container(
@@ -630,35 +642,6 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Your Name:',
-            style: SamuraiTextStyles.brushStroke(
-              color: SamuraiColors.ashWhite,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _nameController,
-            style: SamuraiTextStyles.katanaSharp(
-              color: SamuraiColors.goldenKoi,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Enter your name',
-              hintStyle: SamuraiTextStyles.brushStroke(
-                color: SamuraiColors.ashWhite.withValues(alpha: 0.5),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: SamuraiColors.ironGray),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: SamuraiColors.goldenKoi),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -797,26 +780,43 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Radio<String>(
-                        value: 'left',
-                        groupValue: _hipSide,
-                        onChanged: (value) => setState(() => _hipSide = value!),
-                        activeColor: SamuraiColors.goldenKoi,
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _hipSide = 'left'),
+                          child: Row(
+                            children: [
+                              Radio<String>(
+                                value: 'left',
+                                groupValue: _hipSide,
+                                onChanged: (value) => setState(() => _hipSide = value!),
+                                activeColor: SamuraiColors.goldenKoi,
+                              ),
+                              Text(
+                                'Left',
+                                style: SamuraiTextStyles.brushStroke(color: SamuraiColors.ashWhite),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      Text(
-                        'Left',
-                        style: SamuraiTextStyles.brushStroke(color: SamuraiColors.ashWhite),
-                      ),
-                      const SizedBox(width: 20),
-                      Radio<String>(
-                        value: 'right',
-                        groupValue: _hipSide,
-                        onChanged: (value) => setState(() => _hipSide = value!),
-                        activeColor: SamuraiColors.goldenKoi,
-                      ),
-                      Text(
-                        'Right',
-                        style: SamuraiTextStyles.brushStroke(color: SamuraiColors.ashWhite),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _hipSide = 'right'),
+                          child: Row(
+                            children: [
+                              Radio<String>(
+                                value: 'right',
+                                groupValue: _hipSide,
+                                onChanged: (value) => setState(() => _hipSide = value!),
+                                activeColor: SamuraiColors.goldenKoi,
+                              ),
+                              Text(
+                                'Right',
+                                style: SamuraiTextStyles.brushStroke(color: SamuraiColors.ashWhite),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -839,24 +839,6 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 20),
-          Text(
-            'Training Experience: $_trainingExperience months',
-            style: SamuraiTextStyles.brushStroke(
-              color: SamuraiColors.ashWhite,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Slider(
-            value: _trainingExperience.toDouble(),
-            min: 6,
-            max: 60,
-            divisions: 54,
-            activeColor: SamuraiColors.goldenKoi,
-            inactiveColor: SamuraiColors.ironGray,
-            onChanged: (value) => setState(() => _trainingExperience = value.round()),
-          ),
         ],
       ),
     );
@@ -1068,24 +1050,20 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
     setState(() => _isCreating = true);
     
     try {
-      // Validate inputs
-      if (_nameController.text.isEmpty) {
-        throw Exception('Please enter your name');
-      }
+      // Set default name if not provided
+      final userName = _nameController.text.isEmpty ? 'Warrior' : _nameController.text;
       
-      if (_selectedProgram == 'Hip-Aware Powerlifting Program' && _maxTestResults.isEmpty) {
-        throw Exception('Please complete the max testing protocol');
-      }
 
       if (_selectedProgram == 'Hip-Aware Powerlifting Program') {
         // Calculate training maxes from max testing results (90% of estimated 1RM)
-        final squatTM = (_maxTestResults['Squat'] ?? 0) * 0.9;
-        final inclineBenchTM = (_maxTestResults['Incline Bench Press'] ?? 0) * 0.9;
-        final deadliftTM = (_maxTestResults['Deadlift'] ?? 0) * 0.9;
+        // If max testing not completed, use default beginner values
+        final squatTM = _maxTestResults.isEmpty ? 0 : (_maxTestResults['Squat'] ?? 0) * 0.9;
+        final inclineBenchTM = _maxTestResults.isEmpty ? 0 : (_maxTestResults['Incline Bench Press'] ?? 0) * 0.9;
+        final deadliftTM = _maxTestResults.isEmpty ? 0 : (_maxTestResults['Deadlift'] ?? 0) * 0.9;
         
         // Create UserProfile for the new powerlifting program
         final userProfile = UserProfile(
-          name: _nameController.text,
+          name: userName,
           currentWeek: 1,
           currentBlock: "Accumulation",
           currentMaxes: {
@@ -1102,8 +1080,8 @@ class _ProgramSetupScreenState extends State<ProgramSetupScreen> {
           hipSide: _hipSide,
           programStartDate: DateTime.now(),
           completedWorkouts: [],
-          trainingExperience: _trainingExperience,
-          experienceLevel: _experienceLevel,
+          trainingExperience: 24, // Default to 24 months
+          experienceLevel: 'Intermediate', // Default experience level
           trainingFrequency: 5, // 5 days per week
         );
 

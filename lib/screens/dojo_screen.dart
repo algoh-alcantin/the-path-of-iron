@@ -136,7 +136,13 @@ class _DojoScreenState extends State<DojoScreen> {
       body: _screens[_currentIndex],
       bottomNavigationBar: SamuraiBottomNavigation(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          // Refresh dojo data when switching back to dojo tab
+          if (index == 0) {
+            _loadProgramData();
+          }
+        },
       ),
     );
   }

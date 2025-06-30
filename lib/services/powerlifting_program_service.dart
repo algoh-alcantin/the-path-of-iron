@@ -47,6 +47,21 @@ class PowerliftingProgramService {
 
   // Get workout for specific day and week
   Future<Workout?> getWorkout(int week, String dayName) async {
+    // Check if max testing is needed (training maxes are 0)
+    final userProfileBox = HiveDatabase.userProfileBox;
+    final userProfile = userProfileBox.get('current_user');
+    
+    if (userProfile != null && week == 1 && dayName == 'monday') {
+      final currentMaxes = userProfile.currentMaxes;
+      bool needsMaxTesting = (currentMaxes['squat'] ?? 0) == 0 ||
+                            (currentMaxes['inclineBench'] ?? 0) == 0 ||
+                            (currentMaxes['deadlift'] ?? 0) == 0;
+      
+      if (needsMaxTesting) {
+        return _createMaxTestingWorkout();
+      }
+    }
+    
     final workoutBox = HiveDatabase.workoutBox;
     String workoutId = 'week_${week}_$dayName';
     
@@ -686,6 +701,85 @@ class PowerliftingProgramService {
         return 45;
       default:
         return 60;
+    }
+  }
+
+  // Create max testing workout when training maxes are 0
+  Workout _createMaxTestingWorkout() {
+    return Workout(
+      id: 'max_testing_protocol',
+      dayName: 'monday',
+      workoutName: 'Max Strength Testing Protocol',
+      weekNumber: 1,
+      blockPhase: 'Max Testing',
+      exercises: [
+        Exercise(
+          name: 'Max Testing Protocol',
+          sets: 1,
+          reps: 'Complete Protocol',
+          weight: 'TBD',
+          type: 'main',
+          cues: [
+            'Tap this exercise to begin the Max Testing Protocol',
+            'You will perform guided testing for all three main lifts',
+            'The protocol uses RPE-based estimation (no dangerous max attempts)',
+            'Your training maxes will be calculated from your best sets',
+          ],
+          isUnilateral: false,
+          muscleGroup: 'full_body',
+          equipment: 'barbell',
+          restPeriod: 300,
+          rpeTarget: '8-9',
+          specialInstructions: 'Complete the guided max testing protocol to establish your training maxes for Squat, Incline Bench Press, and Deadlift.',
+          requiresHipActivation: false,
+        ),
+      ],
+      requiresHipActivation: false,
+      keyFocusPoints: [
+        'Complete max testing to establish training maxes',
+        'Follow safety protocols throughout',
+        'Be honest with RPE ratings for accurate estimates',
+        'Take adequate rest between exercises',
+      ],
+      targetRPERange: '8-9 RPE',
+      estimatedDuration: 90,
+    );
+  }
+
+  // Update training maxes after max testing completion and regenerate workouts
+  Future<void> updateTrainingMaxesAndRegenerateWorkouts(Map<String, double> maxTestResults) async {
+    final userProfileBox = HiveDatabase.userProfileBox;
+    final userProfile = userProfileBox.get('current_user');
+    
+    if (userProfile != null) {
+      // Calculate training maxes (90% of estimated 1RM)
+      final squatTM = (maxTestResults['Squat'] ?? 0) * 0.9;
+      final inclineBenchTM = (maxTestResults['Incline Bench Press'] ?? 0) * 0.9;
+      final deadliftTM = (maxTestResults['Deadlift'] ?? 0) * 0.9;
+      
+      // Update user profile with new training maxes
+      userProfile.currentMaxes = {
+        'squat': squatTM.round(),
+        'inclineBench': inclineBenchTM.round(),
+        'deadlift': deadliftTM.round(),
+      };
+      
+      // Update target maxes based on new training maxes
+      userProfile.targetMaxes = {
+        'squat': (squatTM * 1.3).round(), // 30% gain target
+        'inclineBench': (inclineBenchTM * 1.25).round(), // 25% gain target
+        'deadlift': (deadliftTM * 1.4).round(), // 40% gain target
+      };
+      
+      // Save updated profile
+      await userProfileBox.put('current_user', userProfile);
+      
+      // Clear existing workouts and regenerate with new training maxes
+      final workoutBox = HiveDatabase.workoutBox;
+      await workoutBox.clear();
+      
+      // Regenerate all workouts with updated training maxes
+      await _generateAllWorkouts(userProfile);
     }
   }
 }
